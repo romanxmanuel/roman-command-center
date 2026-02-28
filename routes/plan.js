@@ -1,34 +1,30 @@
-// routes/plan.js — Tomorrow's Plan CRUD endpoints
+// routes/plan.js — Tomorrow's Plan CRUD endpoints + slot reordering
 // 6 planned items per day with "done when" criteria
 const express = require('express');
 const router = express.Router();
-const db = require('../db/connection');
+const { db, toRows, toRow } = require('../db/connection');
 const { isValidDate, withinMaxLen, tomorrowStr } = require('../utils/validate');
 
 // GET /api/plan?date=YYYY-MM-DD
-// Returns plan items for a given date (defaults to tomorrow)
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     if (req.query.date && !isValidDate(req.query.date)) {
       return res.status(400).json({ error: 'date must be YYYY-MM-DD format' });
     }
     const planDate = req.query.date || tomorrowStr();
-    const rows = db.prepare(`
-      SELECT id, plan_date, slot, title, done_when, is_done, created_at
-      FROM tomorrow_plan
-      WHERE plan_date = ?
-      ORDER BY slot ASC
-    `).all(planDate);
-    res.json(rows);
+    const result = await db.execute({
+      sql: 'SELECT id, plan_date, slot, title, done_when, is_done, created_at FROM tomorrow_plan WHERE plan_date = ? ORDER BY slot ASC',
+      args: [planDate],
+    });
+    res.json(toRows(result));
   } catch (err) {
     console.error(`[${new Date().toISOString()}] GET /api/plan error:`, err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST /api/plan
-// Create a single plan item: { title, slot, done_when?, plan_date? }
-router.post('/', (req, res) => {
+// POST /api/plan — create a single item: { title, slot, done_when?, plan_date? }
+router.post('/', async (req, res) => {
   try {
     const { title, slot, done_when, plan_date } = req.body;
     if (!title || slot === undefined) {
@@ -48,12 +44,15 @@ router.post('/', (req, res) => {
     }
     const dateVal = plan_date || tomorrowStr();
     const doneWhenVal = done_when || '';
-    const result = db.prepare(`
-      INSERT INTO tomorrow_plan (title, slot, done_when, plan_date)
-      VALUES (?, ?, ?, ?)
-    `).run(title, slot, doneWhenVal, dateVal);
-    const created = db.prepare('SELECT * FROM tomorrow_plan WHERE id = ?').get(result.lastInsertRowid);
-    res.status(201).json(created);
+    const ins = await db.execute({
+      sql: 'INSERT INTO tomorrow_plan (title, slot, done_when, plan_date) VALUES (?, ?, ?, ?)',
+      args: [title, slot, doneWhenVal, dateVal],
+    });
+    const created = await db.execute({
+      sql: 'SELECT * FROM tomorrow_plan WHERE id = ?',
+      args: [Number(ins.lastInsertRowid)],
+    });
+    res.status(201).json(toRow(created));
   } catch (err) {
     console.error(`[${new Date().toISOString()}] POST /api/plan error:`, err.message);
     if (err.message.includes('UNIQUE constraint')) {
@@ -63,10 +62,8 @@ router.post('/', (req, res) => {
   }
 });
 
-// POST /api/plan/bulk
-// Replace all plan items for a date. Deletes existing items, inserts new ones.
-// Body: { plan_date?, items: [{ slot, title, done_when? }, ...] }
-router.post('/bulk', (req, res) => {
+// POST /api/plan/bulk — replace all items for a date atomically
+router.post('/bulk', async (req, res) => {
   try {
     const { plan_date, items } = req.body;
     if (!Array.isArray(items) || items.length === 0) {
@@ -92,34 +89,68 @@ router.post('/bulk', (req, res) => {
         return res.status(400).json({ error: 'slot must be between 1 and 6' });
       }
     }
-
     const dateVal = plan_date || tomorrowStr();
-    const bulkReplace = db.transaction(() => {
-      db.prepare('DELETE FROM tomorrow_plan WHERE plan_date = ?').run(dateVal);
-      const insert = db.prepare(`
-        INSERT INTO tomorrow_plan (title, slot, done_when, plan_date)
-        VALUES (?, ?, ?, ?)
-      `);
-      for (const item of items) {
-        insert.run(item.title, item.slot, item.done_when || '', dateVal);
-      }
-    });
-    bulkReplace();
+    const statements = [
+      { sql: 'DELETE FROM tomorrow_plan WHERE plan_date = ?', args: [dateVal] },
+      ...items.map(item => ({
+        sql: 'INSERT INTO tomorrow_plan (title, slot, done_when, plan_date) VALUES (?, ?, ?, ?)',
+        args: [item.title, item.slot, item.done_when || '', dateVal],
+      })),
+    ];
+    await db.batch(statements, 'write');
 
-    const rows = db.prepare(`
-      SELECT * FROM tomorrow_plan WHERE plan_date = ? ORDER BY slot ASC
-    `).all(dateVal);
-    res.status(201).json(rows);
+    const rows = await db.execute({
+      sql: 'SELECT * FROM tomorrow_plan WHERE plan_date = ? ORDER BY slot ASC',
+      args: [dateVal],
+    });
+    res.status(201).json(toRows(rows));
   } catch (err) {
     console.error(`[${new Date().toISOString()}] POST /api/plan/bulk error:`, err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// PATCH /api/plan/:id — partial update: { title?, done_when?, is_done? }
-router.patch('/:id', (req, res) => {
+// PATCH /api/plan/:id/slot — swap slots atomically
+router.patch('/:id/slot', async (req, res) => {
   try {
-    const item = db.prepare('SELECT * FROM tomorrow_plan WHERE id = ?').get(req.params.id);
+    const newSlot = parseInt(req.body.slot);
+    if (!Number.isInteger(newSlot) || newSlot < 1 || newSlot > 6) {
+      return res.status(400).json({ error: 'slot must be between 1 and 6' });
+    }
+    const getResult = await db.execute({ sql: 'SELECT * FROM tomorrow_plan WHERE id = ?', args: [req.params.id] });
+    const item = toRow(getResult);
+    if (!item) return res.status(404).json({ error: 'Plan item not found' });
+    if (Number(item.slot) === newSlot) return res.json(item);
+
+    const conflictResult = await db.execute({
+      sql: 'SELECT * FROM tomorrow_plan WHERE plan_date = ? AND slot = ?',
+      args: [item.plan_date, newSlot],
+    });
+    const conflict = toRow(conflictResult);
+
+    if (conflict) {
+      await db.batch([
+        { sql: 'UPDATE tomorrow_plan SET slot = 0 WHERE id = ?', args: [conflict.id] },
+        { sql: 'UPDATE tomorrow_plan SET slot = ? WHERE id = ?', args: [newSlot, item.id] },
+        { sql: 'UPDATE tomorrow_plan SET slot = ? WHERE id = ?', args: [item.slot, conflict.id] },
+      ], 'write');
+    } else {
+      await db.execute({ sql: 'UPDATE tomorrow_plan SET slot = ? WHERE id = ?', args: [newSlot, req.params.id] });
+    }
+
+    const updated = await db.execute({ sql: 'SELECT * FROM tomorrow_plan WHERE id = ?', args: [req.params.id] });
+    res.json(toRow(updated));
+  } catch (err) {
+    console.error(`[${new Date().toISOString()}] PATCH /api/plan/:id/slot error:`, err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/plan/:id — partial update: { title?, done_when?, is_done? }
+router.patch('/:id', async (req, res) => {
+  try {
+    const getResult = await db.execute({ sql: 'SELECT * FROM tomorrow_plan WHERE id = ?', args: [req.params.id] });
+    const item = toRow(getResult);
     if (!item) return res.status(404).json({ error: 'Plan item not found' });
 
     const title = req.body.title !== undefined ? req.body.title : item.title;
@@ -132,20 +163,23 @@ router.patch('/:id', (req, res) => {
     if (typeof doneWhen === 'string' && !withinMaxLen(doneWhen, 500)) {
       return res.status(400).json({ error: 'done_when must be 500 characters or less' });
     }
-    db.prepare('UPDATE tomorrow_plan SET title = ?, done_when = ?, is_done = ? WHERE id = ?')
-      .run(title, doneWhen, isDone, req.params.id);
-    const updated = db.prepare('SELECT * FROM tomorrow_plan WHERE id = ?').get(req.params.id);
-    res.json(updated);
+    await db.execute({
+      sql: 'UPDATE tomorrow_plan SET title = ?, done_when = ?, is_done = ? WHERE id = ?',
+      args: [title, doneWhen, isDone, req.params.id],
+    });
+    const updated = await db.execute({ sql: 'SELECT * FROM tomorrow_plan WHERE id = ?', args: [req.params.id] });
+    res.json(toRow(updated));
   } catch (err) {
     console.error(`[${new Date().toISOString()}] PATCH /api/plan/:id error:`, err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// PUT /api/plan/:id — update (same as PATCH, kept for flexibility)
-router.put('/:id', (req, res) => {
+// PUT /api/plan/:id — full update (alias for PATCH)
+router.put('/:id', async (req, res) => {
   try {
-    const item = db.prepare('SELECT * FROM tomorrow_plan WHERE id = ?').get(req.params.id);
+    const getResult = await db.execute({ sql: 'SELECT * FROM tomorrow_plan WHERE id = ?', args: [req.params.id] });
+    const item = toRow(getResult);
     if (!item) return res.status(404).json({ error: 'Plan item not found' });
 
     const title = req.body.title !== undefined ? req.body.title : item.title;
@@ -158,10 +192,12 @@ router.put('/:id', (req, res) => {
     if (typeof doneWhen === 'string' && !withinMaxLen(doneWhen, 500)) {
       return res.status(400).json({ error: 'done_when must be 500 characters or less' });
     }
-    db.prepare('UPDATE tomorrow_plan SET title = ?, done_when = ?, is_done = ? WHERE id = ?')
-      .run(title, doneWhen, isDone, req.params.id);
-    const updated = db.prepare('SELECT * FROM tomorrow_plan WHERE id = ?').get(req.params.id);
-    res.json(updated);
+    await db.execute({
+      sql: 'UPDATE tomorrow_plan SET title = ?, done_when = ?, is_done = ? WHERE id = ?',
+      args: [title, doneWhen, isDone, req.params.id],
+    });
+    const updated = await db.execute({ sql: 'SELECT * FROM tomorrow_plan WHERE id = ?', args: [req.params.id] });
+    res.json(toRow(updated));
   } catch (err) {
     console.error(`[${new Date().toISOString()}] PUT /api/plan/:id error:`, err.message);
     res.status(500).json({ error: err.message });
@@ -169,10 +205,10 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE /api/plan/:id
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const result = db.prepare('DELETE FROM tomorrow_plan WHERE id = ?').run(req.params.id);
-    if (result.changes === 0) return res.status(404).json({ error: 'Plan item not found' });
+    const result = await db.execute({ sql: 'DELETE FROM tomorrow_plan WHERE id = ?', args: [req.params.id] });
+    if (result.rowsAffected === 0) return res.status(404).json({ error: 'Plan item not found' });
     res.json({ deleted: true });
   } catch (err) {
     console.error(`[${new Date().toISOString()}] DELETE /api/plan/:id error:`, err.message);

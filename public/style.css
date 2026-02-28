@@ -1085,3 +1085,147 @@ textarea.neon-input {
 .sidebar-close {
   display: none;
 }
+
+/* ========== SLOT BUTTON (clickable slot number) ========== */
+.slot-btn {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--magenta);
+  min-width: 28px;
+  text-align: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.slot-btn:hover {
+  border-color: var(--magenta);
+  background: rgba(255, 0, 255, 0.08);
+}
+
+.slot-select {
+  width: 56px;
+  padding: 0.15rem 0.25rem;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  color: var(--magenta);
+}
+
+/* ========== AUTHOR TOGGLE (Roman / Jessica) ========== */
+.author-toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.author-toggle-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.author-btn {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  letter-spacing: 0.5px;
+}
+
+.author-btn.roman.active {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  background: rgba(0, 255, 255, 0.1);
+  text-shadow: 0 0 6px rgba(0, 255, 255, 0.4);
+}
+
+.author-btn.jessica.active {
+  border-color: var(--magenta);
+  color: var(--magenta);
+  background: rgba(255, 0, 255, 0.1);
+  text-shadow: 0 0 6px rgba(255, 0, 255, 0.4);
+}
+
+.author-btn:hover:not(.active) {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+}
+
+/* ========== AUTHOR BADGE (in list) ========== */
+.author-badge {
+  display: inline-block;
+  font-size: 0.6rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  margin-right: 0.35rem;
+}
+
+.author-roman {
+  background: rgba(0, 255, 255, 0.12);
+  color: var(--cyan);
+  border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.author-jessica {
+  background: rgba(255, 0, 255, 0.12);
+  color: var(--magenta);
+  border: 1px solid rgba(255, 0, 255, 0.2);
+}
+
+/* ========== PRIORITY BADGE ========== */
+.priority-badge {
+  display: inline-block;
+  font-size: 0.6rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  margin-right: 0.35rem;
+}
+
+.priority-1 { background: rgba(255, 51, 102, 0.15); color: var(--red); border: 1px solid rgba(255, 51, 102, 0.25); }
+.priority-2 { background: rgba(255, 238, 0, 0.12); color: var(--yellow); border: 1px solid rgba(255, 238, 0, 0.2); }
+.priority-3 { background: rgba(0, 255, 136, 0.1); color: var(--green); border: 1px solid rgba(0, 255, 136, 0.15); }
+
+/* ========== DEV TASK STATUS BADGES ========== */
+.dev-status-todo { background: rgba(0, 255, 255, 0.1); color: var(--cyan); }
+.dev-status-in_progress { background: rgba(255, 238, 0, 0.12); color: var(--yellow); }
+.dev-status-done { background: rgba(0, 255, 136, 0.12); color: var(--green); }
+
+/* ========== DEV TASK PROJECT GROUPING ========== */
+.dev-project-group {
+  margin-bottom: 1rem;
+}
+
+.dev-project-header {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--cyan-dim);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--glass-border);
+  margin-bottom: 0.4rem;
+}
+
+/* ========== INLINE ROW (form helper) ========== */
+.inline-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.inline-row .neon-input {
+  flex: 1;
+}

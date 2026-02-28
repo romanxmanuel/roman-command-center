@@ -1,22 +1,19 @@
 // routes/sql_practice.js — SQL Practice log CRUD endpoints
-// Track daily SQL study sessions with topic, duration, and notes
+// Track daily study sessions with topic, duration, and notes
 const express = require('express');
 const router = express.Router();
-const db = require('../db/connection');
+const { db, toRows, toRow } = require('../db/connection');
 const { isValidDate, isPositiveInt, withinMaxLen, todayStr } = require('../utils/validate');
 
 // GET /api/sql-practice?limit=30
-// Returns recent practice sessions
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 30;
-    const rows = db.prepare(`
-      SELECT id, practice_date, topic, minutes, notes, created_at
-      FROM sql_practice
-      ORDER BY practice_date DESC, id DESC
-      LIMIT ?
-    `).all(limit);
-    res.json(rows);
+    const result = await db.execute({
+      sql: 'SELECT id, practice_date, topic, minutes, notes, created_at FROM sql_practice ORDER BY practice_date DESC, id DESC LIMIT ?',
+      args: [limit],
+    });
+    res.json(toRows(result));
   } catch (err) {
     console.error(`[${new Date().toISOString()}] GET /api/sql-practice error:`, err.message);
     res.status(500).json({ error: err.message });
@@ -24,25 +21,17 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/sql-practice/stats
-// Returns total sessions, total minutes, and minutes per topic
-router.get('/stats', (req, res) => {
+router.get('/stats', async (req, res) => {
   try {
-    const totals = db.prepare(`
-      SELECT COUNT(*) AS total_sessions,
-             COALESCE(SUM(minutes), 0) AS total_minutes
-      FROM sql_practice
-    `).get();
+    const totalsResult = await db.execute(
+      'SELECT COUNT(*) AS total_sessions, COALESCE(SUM(minutes), 0) AS total_minutes FROM sql_practice'
+    );
+    const totals = toRow(totalsResult);
 
-    const byTopic = db.prepare(`
-      SELECT topic,
-             COUNT(*) AS sessions,
-             SUM(minutes) AS total_minutes
-      FROM sql_practice
-      GROUP BY topic
-      ORDER BY total_minutes DESC
-    `).all();
-
-    res.json({ ...totals, by_topic: byTopic });
+    const byTopicResult = await db.execute(
+      'SELECT topic, COUNT(*) AS sessions, SUM(minutes) AS total_minutes FROM sql_practice GROUP BY topic ORDER BY total_minutes DESC'
+    );
+    res.json({ ...totals, by_topic: toRows(byTopicResult) });
   } catch (err) {
     console.error(`[${new Date().toISOString()}] GET /api/sql-practice/stats error:`, err.message);
     res.status(500).json({ error: err.message });
@@ -50,8 +39,7 @@ router.get('/stats', (req, res) => {
 });
 
 // POST /api/sql-practice
-// Create a practice entry: { topic, minutes, notes?, practice_date? }
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { topic, minutes, notes, practice_date } = req.body;
     if (!topic || minutes === undefined) {
@@ -71,13 +59,15 @@ router.post('/', (req, res) => {
     }
     const dateVal = practice_date || todayStr();
     const notesVal = notes || '';
-
-    const result = db.prepare(`
-      INSERT INTO sql_practice (topic, minutes, notes, practice_date)
-      VALUES (?, ?, ?, ?)
-    `).run(topic, minutes, notesVal, dateVal);
-    const created = db.prepare('SELECT * FROM sql_practice WHERE id = ?').get(result.lastInsertRowid);
-    res.status(201).json(created);
+    const ins = await db.execute({
+      sql: 'INSERT INTO sql_practice (topic, minutes, notes, practice_date) VALUES (?, ?, ?, ?)',
+      args: [topic, minutes, notesVal, dateVal],
+    });
+    const created = await db.execute({
+      sql: 'SELECT * FROM sql_practice WHERE id = ?',
+      args: [Number(ins.lastInsertRowid)],
+    });
+    res.status(201).json(toRow(created));
   } catch (err) {
     console.error(`[${new Date().toISOString()}] POST /api/sql-practice error:`, err.message);
     res.status(500).json({ error: err.message });
@@ -85,10 +75,10 @@ router.post('/', (req, res) => {
 });
 
 // PUT /api/sql-practice/:id
-// Update a session: { topic?, minutes?, notes? }
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
-    const item = db.prepare('SELECT * FROM sql_practice WHERE id = ?').get(req.params.id);
+    const getResult = await db.execute({ sql: 'SELECT * FROM sql_practice WHERE id = ?', args: [req.params.id] });
+    const item = toRow(getResult);
     if (!item) return res.status(404).json({ error: 'Practice entry not found' });
 
     const topic = req.body.topic !== undefined ? req.body.topic : item.topic;
@@ -104,10 +94,12 @@ router.put('/:id', (req, res) => {
     if (typeof notes === 'string' && !withinMaxLen(notes, 1000)) {
       return res.status(400).json({ error: 'notes must be 1000 characters or less' });
     }
-    db.prepare('UPDATE sql_practice SET topic = ?, minutes = ?, notes = ? WHERE id = ?')
-      .run(topic, minutes, notes, req.params.id);
-    const updated = db.prepare('SELECT * FROM sql_practice WHERE id = ?').get(req.params.id);
-    res.json(updated);
+    await db.execute({
+      sql: 'UPDATE sql_practice SET topic = ?, minutes = ?, notes = ? WHERE id = ?',
+      args: [topic, minutes, notes, req.params.id],
+    });
+    const updated = await db.execute({ sql: 'SELECT * FROM sql_practice WHERE id = ?', args: [req.params.id] });
+    res.json(toRow(updated));
   } catch (err) {
     console.error(`[${new Date().toISOString()}] PUT /api/sql-practice/:id error:`, err.message);
     res.status(500).json({ error: err.message });
@@ -115,10 +107,10 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE /api/sql-practice/:id
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const result = db.prepare('DELETE FROM sql_practice WHERE id = ?').run(req.params.id);
-    if (result.changes === 0) return res.status(404).json({ error: 'Practice entry not found' });
+    const result = await db.execute({ sql: 'DELETE FROM sql_practice WHERE id = ?', args: [req.params.id] });
+    if (result.rowsAffected === 0) return res.status(404).json({ error: 'Practice entry not found' });
     res.json({ deleted: true });
   } catch (err) {
     console.error(`[${new Date().toISOString()}] DELETE /api/sql-practice/:id error:`, err.message);

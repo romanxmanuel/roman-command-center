@@ -1,5 +1,5 @@
 // app.js — Roman Command Center frontend
-// SPA router, 7 modules, Chart.js dashboards, toast notifications, inline editing,
+// SPA router, 8 modules, Chart.js dashboards, toast notifications, inline editing,
 // keyboard shortcuts, confirmation modal, streak widget, weekly summary
 
 // ========== UTILITY ==========
@@ -172,13 +172,12 @@ function initKeyboardShortcuts() {
     j: 'applications',
     g: 'gym',
     r: 'relationships',
+    v: 'devtasks',
   };
 
   document.addEventListener('keydown', (e) => {
-    // Ignore when typing in inputs, textareas, selects
     const tag = e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-    // Ignore if modal is open
     if (!document.getElementById('modal-overlay').classList.contains('hidden')) return;
 
     const key = e.key.toLowerCase();
@@ -280,9 +279,14 @@ function initRouter() {
 
 function loadSection(name) {
   const loaders = {
-    dashboard: loadDashboard, tasks: loadTasks, plan: loadPlan,
-    sql: loadSql, applications: loadApplications, gym: loadGym,
+    dashboard: loadDashboard,
+    tasks: loadTasks,
+    plan: loadPlan,
+    sql: loadSql,
+    applications: loadApplications,
+    gym: loadGym,
     relationships: loadRelationships,
+    devtasks: loadDevTasks,
   };
   if (loaders[name]) loaders[name]();
 }
@@ -334,7 +338,6 @@ async function renderWeeklySummary() {
       api('/relationships?limit=60'),
     ]);
 
-    // Tasks completed this week
     let tasksDone = 0;
     let tasksTotal = 0;
     taskResults.forEach(dayTasks => {
@@ -342,19 +345,16 @@ async function renderWeeklySummary() {
       tasksDone += dayTasks.filter(t => t.is_done).length;
     });
 
-    // SQL minutes this week
     let sqlMinutes = 0;
     sqlSessions.forEach(s => {
       if (dates.includes(s.practice_date)) sqlMinutes += s.minutes;
     });
 
-    // Gym minutes this week
     let gymMinutes = 0;
     gymEntries.forEach(g => {
       if (dates.includes(g.log_date)) gymMinutes += g.duration_minutes;
     });
 
-    // Check-ins this week
     let checkinCount = 0;
     checkins.forEach(c => {
       if (dates.includes(c.checkin_date)) checkinCount++;
@@ -530,7 +530,7 @@ async function loadTasks() {
     } else {
       listEl.innerHTML = tasks.map(t =>
         '<div class="task-item ' + (t.is_done ? 'done' : '') + '">' +
-          '<span class="task-slot">#' + t.slot + '</span>' +
+          '<button class="task-slot slot-btn" data-id="' + t.id + '" data-slot="' + t.slot + '" data-max-slot="3" title="Click to change slot">#' + t.slot + '</button>' +
           '<button class="task-toggle ' + (t.is_done ? 'checked' : '') + '" data-id="' + t.id + '">' +
             (t.is_done ? '&#10003;' : '') +
           '</button>' +
@@ -596,6 +596,38 @@ function initTasks() {
   document.getElementById('tasks-list').addEventListener('click', async (e) => {
     const toggleBtn = e.target.closest('.task-toggle');
     const deleteBtn = e.target.closest('.task-delete');
+    const slotBtn = e.target.closest('.slot-btn');
+
+    if (slotBtn) {
+      const id = slotBtn.dataset.id;
+      const maxSlot = parseInt(slotBtn.dataset.maxSlot);
+      const currentSlot = parseInt(slotBtn.dataset.slot);
+      // Replace slot button with an inline select
+      const select = document.createElement('select');
+      select.className = 'slot-select neon-input';
+      for (let i = 1; i <= maxSlot; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = '#' + i;
+        if (i === currentSlot) opt.selected = true;
+        select.appendChild(opt);
+      }
+      slotBtn.replaceWith(select);
+      select.focus();
+      select.addEventListener('change', async () => {
+        const newSlot = parseInt(select.value);
+        if (newSlot === currentSlot) { loadTasks(); return; }
+        try {
+          await api('/tasks/' + id + '/slot', { method: 'PATCH', body: { slot: newSlot } });
+          toast('Slot updated', 'success');
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+        loadTasks();
+      });
+      select.addEventListener('blur', () => setTimeout(loadTasks, 150));
+      return;
+    }
 
     if (toggleBtn) {
       try {
@@ -634,7 +666,7 @@ async function loadPlan() {
     } else {
       listEl.innerHTML = items.map(item =>
         '<div class="task-item ' + (item.is_done ? 'done' : '') + '">' +
-          '<span class="task-slot">#' + item.slot + '</span>' +
+          '<button class="task-slot slot-btn" data-id="' + item.id + '" data-slot="' + item.slot + '" data-max-slot="6" title="Click to change slot">#' + item.slot + '</button>' +
           '<button class="task-toggle ' + (item.is_done ? 'checked' : '') + '" data-id="' + item.id + '">' +
             (item.is_done ? '&#10003;' : '') +
           '</button>' +
@@ -676,6 +708,37 @@ function initPlan() {
   document.getElementById('plan-list').addEventListener('click', async (e) => {
     const toggleBtn = e.target.closest('.task-toggle');
     const deleteBtn = e.target.closest('.task-delete');
+    const slotBtn = e.target.closest('.slot-btn');
+
+    if (slotBtn) {
+      const id = slotBtn.dataset.id;
+      const maxSlot = parseInt(slotBtn.dataset.maxSlot);
+      const currentSlot = parseInt(slotBtn.dataset.slot);
+      const select = document.createElement('select');
+      select.className = 'slot-select neon-input';
+      for (let i = 1; i <= maxSlot; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = '#' + i;
+        if (i === currentSlot) opt.selected = true;
+        select.appendChild(opt);
+      }
+      slotBtn.replaceWith(select);
+      select.focus();
+      select.addEventListener('change', async () => {
+        const newSlot = parseInt(select.value);
+        if (newSlot === currentSlot) { loadPlan(); return; }
+        try {
+          await api('/plan/' + id + '/slot', { method: 'PATCH', body: { slot: newSlot } });
+          toast('Slot updated', 'success');
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+        loadPlan();
+      });
+      select.addEventListener('blur', () => setTimeout(loadPlan, 150));
+      return;
+    }
 
     if (toggleBtn) {
       try {
@@ -994,9 +1057,16 @@ function initGym() {
   });
 }
 
-// ========== RELATIONSHIP CHECK-INS (with edit) ==========
+// ========== RELATIONSHIP CHECK-INS (with author toggle + edit) ==========
 let relItems = [];
 let relEditingId = null;
+let relAuthor = 'Roman'; // currently selected author
+
+function setRelAuthor(author) {
+  relAuthor = author;
+  document.getElementById('rel-author-roman').classList.toggle('active', author === 'Roman');
+  document.getElementById('rel-author-jessica').classList.toggle('active', author === 'Jessica');
+}
 
 async function loadRelationships() {
   const listEl = document.getElementById('rel-list');
@@ -1008,22 +1078,25 @@ async function loadRelationships() {
       listEl.innerHTML = emptyState('No check-ins yet', 'Save your first morning or evening check-in above');
       return;
     }
-    listEl.innerHTML = relItems.map(r =>
-      '<div class="log-item">' +
+    listEl.innerHTML = relItems.map(r => {
+      const author = r.author || 'Roman';
+      const authorClass = author === 'Jessica' ? 'jessica' : 'roman';
+      return '<div class="log-item">' +
         '<div class="log-item-main">' +
           '<div class="log-item-title">' +
+            '<span class="author-badge author-' + authorClass + '">' + escapeHtml(author) + '</span>' +
             '<span class="time-badge time-' + escapeHtml(r.time_of_day) + '">' + escapeHtml(r.time_of_day) + '</span> ' +
             escapeHtml(r.checkin_date) +
           '</div>' +
-          '<div class="log-item-notes">' + escapeHtml(r.notes) + '</div>' +
           (r.gratitude ? '<div class="log-item-meta" style="margin-top:0.3rem;">Gratitude: ' + escapeHtml(r.gratitude) + '</div>' : '') +
+          '<div class="log-item-notes">' + escapeHtml(r.notes) + '</div>' +
         '</div>' +
         '<div class="log-item-actions">' +
           '<button class="btn-edit" data-id="' + r.id + '">&#9998;</button>' +
           '<button class="task-delete" data-id="' + r.id + '">&times;</button>' +
         '</div>' +
-      '</div>'
-    ).join('');
+      '</div>';
+    }).join('');
   } catch (err) {
     listEl.innerHTML = emptyState('Failed to load check-ins');
     toast(err.message, 'error');
@@ -1035,9 +1108,13 @@ function resetRelForm() {
   document.getElementById('rel-form').reset();
   document.getElementById('rel-submit').textContent = 'Save Check-in';
   document.getElementById('rel-cancel').style.display = 'none';
+  setRelAuthor('Roman');
 }
 
 function initRelationships() {
+  document.getElementById('rel-author-roman').addEventListener('click', () => setRelAuthor('Roman'));
+  document.getElementById('rel-author-jessica').addEventListener('click', () => setRelAuthor('Jessica'));
+
   document.getElementById('rel-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const timeOfDay = document.getElementById('rel-time').value;
@@ -1046,10 +1123,10 @@ function initRelationships() {
     if (!notes) return;
     try {
       if (relEditingId) {
-        await api('/relationships/' + relEditingId, { method: 'PUT', body: { notes, gratitude } });
+        await api('/relationships/' + relEditingId, { method: 'PUT', body: { notes, gratitude, author: relAuthor } });
         toast('Check-in updated', 'success');
       } else {
-        await api('/relationships', { method: 'POST', body: { time_of_day: timeOfDay, notes, gratitude } });
+        await api('/relationships', { method: 'POST', body: { time_of_day: timeOfDay, notes, gratitude, author: relAuthor } });
         toast('Check-in saved', 'success');
       }
       resetRelForm();
@@ -1071,6 +1148,7 @@ function initRelationships() {
       document.getElementById('rel-time').value = item.time_of_day;
       document.getElementById('rel-notes').value = item.notes || '';
       document.getElementById('rel-gratitude').value = item.gratitude || '';
+      setRelAuthor(item.author || 'Roman');
       relEditingId = item.id;
       document.getElementById('rel-submit').textContent = 'Update';
       document.getElementById('rel-cancel').style.display = '';
@@ -1083,6 +1161,145 @@ function initRelationships() {
         toast('Check-in deleted', 'success');
         if (relEditingId == deleteBtn.dataset.id) resetRelForm();
         loadRelationships();
+      } catch (err) { toast(err.message, 'error'); }
+    }
+  });
+}
+
+// ========== DEV TASKS ==========
+let devItems = [];
+let devEditingId = null;
+
+const DEV_PRIORITY_LABELS = { 1: 'High', 2: 'Med', 3: 'Low' };
+const DEV_STATUS_LABELS = { todo: 'Todo', in_progress: 'In Progress', done: 'Done' };
+
+async function loadDevTasks() {
+  const listEl = document.getElementById('dev-list');
+  listEl.innerHTML = '<div class="spinner"></div>';
+
+  try {
+    const filter = document.getElementById('dev-filter-status').value;
+    const query = filter ? '?status=' + encodeURIComponent(filter) : '';
+    devItems = await api('/dev-tasks' + query);
+
+    if (devItems.length === 0) {
+      listEl.innerHTML = emptyState(
+        filter ? 'No tasks match this filter' : 'No dev tasks yet',
+        filter ? 'Try a different status filter' : 'Add your first task above'
+      );
+      return;
+    }
+
+    // Group by project
+    const byProject = {};
+    devItems.forEach(t => {
+      if (!byProject[t.project]) byProject[t.project] = [];
+      byProject[t.project].push(t);
+    });
+
+    listEl.innerHTML = Object.entries(byProject).map(([project, tasks]) =>
+      '<div class="dev-project-group">' +
+        '<div class="dev-project-header">' + escapeHtml(project) + '</div>' +
+        tasks.map(t =>
+          '<div class="log-item">' +
+            '<div class="log-item-main">' +
+              '<div class="log-item-title">' +
+                '<span class="priority-badge priority-' + t.priority + '">' + escapeHtml(DEV_PRIORITY_LABELS[t.priority] || 'Med') + '</span> ' +
+                escapeHtml(t.title) +
+              '</div>' +
+              (t.notes ? '<div class="log-item-notes">' + escapeHtml(t.notes) + '</div>' : '') +
+            '</div>' +
+            '<div class="log-item-actions">' +
+              '<select class="status-select dev-status-select" data-id="' + t.id + '">' +
+                ['todo', 'in_progress', 'done']
+                  .map(s => '<option value="' + s + '"' + (s === t.status ? ' selected' : '') + '>' + escapeHtml(DEV_STATUS_LABELS[s]) + '</option>')
+                  .join('') +
+              '</select>' +
+              '<span class="status-badge dev-status-' + escapeHtml(t.status) + '">' + escapeHtml(DEV_STATUS_LABELS[t.status] || t.status) + '</span>' +
+              '<button class="btn-edit" data-id="' + t.id + '">&#9998;</button>' +
+              '<button class="task-delete" data-id="' + t.id + '">&times;</button>' +
+            '</div>' +
+          '</div>'
+        ).join('') +
+      '</div>'
+    ).join('');
+  } catch (err) {
+    listEl.innerHTML = emptyState('Failed to load dev tasks');
+    toast(err.message, 'error');
+  }
+}
+
+function resetDevForm() {
+  devEditingId = null;
+  document.getElementById('dev-form').reset();
+  document.getElementById('dev-priority').value = '2';
+  document.getElementById('dev-submit').textContent = 'Add Task';
+  document.getElementById('dev-cancel').style.display = 'none';
+}
+
+function initDevTasks() {
+  document.getElementById('dev-filter-status').addEventListener('change', loadDevTasks);
+
+  document.getElementById('dev-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const project = document.getElementById('dev-project').value.trim();
+    const title = document.getElementById('dev-title').value.trim();
+    const status = document.getElementById('dev-status').value;
+    const priority = parseInt(document.getElementById('dev-priority').value);
+    const notes = document.getElementById('dev-notes').value.trim();
+    if (!project || !title) return;
+    try {
+      if (devEditingId) {
+        await api('/dev-tasks/' + devEditingId, { method: 'PUT', body: { project, title, status, priority, notes } });
+        toast('Task updated', 'success');
+      } else {
+        await api('/dev-tasks', { method: 'POST', body: { project, title, status, priority, notes } });
+        toast('Task added', 'success');
+      }
+      resetDevForm();
+      loadDevTasks();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
+
+  document.getElementById('dev-cancel').addEventListener('click', resetDevForm);
+
+  document.getElementById('dev-list').addEventListener('click', async (e) => {
+    const editBtn = e.target.closest('.btn-edit');
+    const deleteBtn = e.target.closest('.task-delete');
+
+    if (editBtn) {
+      const item = devItems.find(i => i.id == editBtn.dataset.id);
+      if (!item) return;
+      document.getElementById('dev-project').value = item.project;
+      document.getElementById('dev-title').value = item.title;
+      document.getElementById('dev-status').value = item.status;
+      document.getElementById('dev-priority').value = item.priority;
+      document.getElementById('dev-notes').value = item.notes || '';
+      devEditingId = item.id;
+      document.getElementById('dev-submit').textContent = 'Update';
+      document.getElementById('dev-cancel').style.display = '';
+      document.getElementById('dev-form').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    if (deleteBtn) {
+      try {
+        await api('/dev-tasks/' + deleteBtn.dataset.id, { method: 'DELETE' });
+        toast('Task deleted', 'success');
+        if (devEditingId == deleteBtn.dataset.id) resetDevForm();
+        loadDevTasks();
+      } catch (err) { toast(err.message, 'error'); }
+    }
+  });
+
+  document.getElementById('dev-list').addEventListener('change', async (e) => {
+    const select = e.target.closest('.dev-status-select');
+    if (select) {
+      try {
+        await api('/dev-tasks/' + select.dataset.id, { method: 'PUT', body: { status: select.value } });
+        toast('Status updated', 'success');
+        loadDevTasks();
       } catch (err) { toast(err.message, 'error'); }
     }
   });
@@ -1111,7 +1328,6 @@ function initMobileNav() {
   closeBtn.addEventListener('click', closeSidebar);
   backdrop.addEventListener('click', closeSidebar);
 
-  // Close drawer when a nav link is tapped on mobile
   document.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', () => {
       if (window.innerWidth <= 640) closeSidebar();
@@ -1134,4 +1350,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initApplications();
   initGym();
   initRelationships();
+  initDevTasks();
 });

@@ -51,6 +51,7 @@
         <li><a href="#applications" class="nav-link" data-section="applications">Job Tracker <kbd>g j</kbd></a></li>
         <li><a href="#gym" class="nav-link" data-section="gym">Gym <kbd>g g</kbd></a></li>
         <li><a href="#relationships" class="nav-link" data-section="relationships">Relationship <kbd>g r</kbd></a></li>
+        <li><a href="#devtasks" class="nav-link" data-section="devtasks">Dev Tasks <kbd>g v</kbd></a></li>
       </ul>
       <div class="sidebar-footer">
         <p class="clock" id="clock"></p>
@@ -271,12 +272,19 @@
         <h2 class="section-title">Relationship Check-ins</h2>
         <div class="glass-card">
           <form id="rel-form" class="stacked-form">
+            <!-- Author toggle -->
+            <div class="author-toggle-group">
+              <span class="author-toggle-label">Author:</span>
+              <button type="button" class="author-btn roman active" id="rel-author-roman">Roman</button>
+              <button type="button" class="author-btn jessica" id="rel-author-jessica">Jessica</button>
+            </div>
             <select id="rel-time" class="neon-input" required>
               <option value="morning">Morning</option>
               <option value="evening">Evening</option>
             </select>
-            <textarea id="rel-notes" class="neon-input" placeholder="Check-in notes..." rows="2" required maxlength="1000"></textarea>
+            <!-- Gratitude ABOVE notes (per user request) -->
             <textarea id="rel-gratitude" class="neon-input" placeholder="Gratitude..." rows="2" maxlength="500"></textarea>
+            <textarea id="rel-notes" class="neon-input" placeholder="Check-in notes..." rows="2" required maxlength="1000"></textarea>
             <div class="form-actions">
               <button type="submit" class="neon-btn" id="rel-submit">Save Check-in</button>
               <button type="button" class="neon-btn danger" id="rel-cancel" style="display:none">Cancel</button>
@@ -286,6 +294,46 @@
         <div class="glass-card" style="margin-top:1rem;">
           <h3>Recent Check-ins</h3>
           <div id="rel-list" class="log-list"><div class="spinner"></div></div>
+        </div>
+      </section>
+
+      <!-- Dev Tasks -->
+      <section id="section-devtasks" class="section">
+        <h2 class="section-title">Dev Tasks</h2>
+        <div class="glass-card">
+          <form id="dev-form" class="stacked-form">
+            <input type="text" id="dev-project" class="neon-input" placeholder="Project name" required maxlength="100">
+            <input type="text" id="dev-title" class="neon-input" placeholder="Task title" required maxlength="200">
+            <div class="inline-row">
+              <select id="dev-status" class="neon-input">
+                <option value="todo">Todo</option>
+                <option value="in_progress">In Progress</option>
+                <option value="done">Done</option>
+              </select>
+              <select id="dev-priority" class="neon-input">
+                <option value="1">High Priority</option>
+                <option value="2" selected>Medium Priority</option>
+                <option value="3">Low Priority</option>
+              </select>
+            </div>
+            <textarea id="dev-notes" class="neon-input" placeholder="Notes..." rows="2" maxlength="1000"></textarea>
+            <div class="form-actions">
+              <button type="submit" class="neon-btn" id="dev-submit">Add Task</button>
+              <button type="button" class="neon-btn danger" id="dev-cancel" style="display:none">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="glass-card" style="margin-top:1rem;">
+          <div class="list-header">
+            <h3>Tasks</h3>
+            <select id="dev-filter-status" class="neon-input">
+              <option value="">All Statuses</option>
+              <option value="todo">Todo</option>
+              <option value="in_progress">In Progress</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+          <div id="dev-list" class="log-list"><div class="spinner"></div></div>
         </div>
       </section>
 

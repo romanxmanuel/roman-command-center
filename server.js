@@ -2,9 +2,6 @@
 const express = require('express');
 const path = require('path');
 
-// Ensure tables exist on startup (idempotent — uses CREATE TABLE IF NOT EXISTS)
-require('./db/migrate');
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -38,6 +35,7 @@ app.use('/api/sql-practice', require('./routes/sql_practice'));
 app.use('/api/applications', require('./routes/applications'));
 app.use('/api/gym', require('./routes/gym'));
 app.use('/api/relationships', require('./routes/relationships'));
+app.use('/api/dev-tasks', require('./routes/dev_tasks'));
 app.use('/api/admin', require('./routes/admin'));
 
 // --- Fallback: serve index.html for SPA routing ---
@@ -45,7 +43,16 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// --- Start Server ---
-app.listen(PORT, () => {
-  console.log(`[${new Date().toISOString()}] Roman Command Center online at http://localhost:${PORT}`);
-});
+// --- Start Server (async migrate first) ---
+async function start() {
+  try {
+    await require('./db/migrate')();
+    app.listen(PORT, () => {
+      console.log(`[${new Date().toISOString()}] Roman Command Center online at http://localhost:${PORT}`);
+    });
+  } catch (err) {
+    console.error('[startup] Migration failed:', err.message);
+    process.exit(1);
+  }
+}
+start();
