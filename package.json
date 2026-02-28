@@ -1,0 +1,19 @@
+{
+  "name": "roman-command-center",
+  "version": "1.0.0",
+  "description": "Local web-based personal productivity and analytics dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "db:migrate": "node db/migrate.js",
+    "db:seed": "node db/seed.js",
+    "db:reset": "node db/reset.js"
+  },
+  "keywords": ["productivity", "dashboard", "sqlite", "express"],
+  "author": "Roman",
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "express": "^4.21.0"
+  }
+}

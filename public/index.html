@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roman Command Center</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <!-- Animated grid background -->
+  <canvas id="gridCanvas"></canvas>
+
+  <!-- Scanline overlay -->
+  <div class="scanline"></div>
+
+  <!-- Toast notifications -->
+  <div id="toast-container"></div>
+
+  <!-- Confirmation modal -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal glass-card">
+      <h3 class="modal-title" id="modal-title">Confirm</h3>
+      <p class="modal-body" id="modal-body">Are you sure?</p>
+      <div class="modal-actions">
+        <button class="neon-btn danger" id="modal-confirm">Confirm</button>
+        <button class="neon-btn" id="modal-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-shell">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <div class="orb"></div>
+        <h1 class="logo">RCC</h1>
+        <p class="logo-sub">Command Center</p>
+      </div>
+      <ul class="nav-links">
+        <li><a href="#dashboard" class="nav-link active" data-section="dashboard">Dashboard <kbd>g d</kbd></a></li>
+        <li><a href="#tasks" class="nav-link" data-section="tasks">Power Tasks <kbd>g p</kbd></a></li>
+        <li><a href="#plan" class="nav-link" data-section="plan">Tomorrow's Plan <kbd>g t</kbd></a></li>
+        <li><a href="#sql" class="nav-link" data-section="sql">SQL Log <kbd>g s</kbd></a></li>
+        <li><a href="#applications" class="nav-link" data-section="applications">Job Tracker <kbd>g j</kbd></a></li>
+        <li><a href="#gym" class="nav-link" data-section="gym">Gym <kbd>g g</kbd></a></li>
+        <li><a href="#relationships" class="nav-link" data-section="relationships">Relationship <kbd>g r</kbd></a></li>
+      </ul>
+      <div class="sidebar-footer">
+        <p class="clock" id="clock"></p>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+      <!-- Topbar -->
+      <div class="topbar">
+        <div class="topbar-date" id="topbar-date"></div>
+        <button class="neon-btn danger topbar-reset" id="btn-reset-db">Reset DB</button>
+      </div>
+
+      <!-- Dashboard -->
+      <section id="section-dashboard" class="section active">
+        <h2 class="section-title">Mission Control</h2>
+        <div class="dashboard-grid">
+          <div class="glass-card stat-card">
+            <h3>Power Tasks</h3>
+            <p class="stat-number" id="dash-tasks-done">-</p>
+            <p class="stat-label">completed today</p>
+          </div>
+          <div class="glass-card stat-card">
+            <h3>Streak</h3>
+            <p class="stat-number" id="dash-streak">-</p>
+            <p class="stat-label">consecutive days</p>
+          </div>
+          <div class="glass-card stat-card">
+            <h3>SQL Minutes</h3>
+            <p class="stat-number" id="dash-sql-minutes">-</p>
+            <p class="stat-label">total practice</p>
+          </div>
+          <div class="glass-card stat-card">
+            <h3>Applications</h3>
+            <p class="stat-number" id="dash-apps-total">-</p>
+            <p class="stat-label">total sent</p>
+          </div>
+          <div class="glass-card stat-card">
+            <h3>Gym Sessions</h3>
+            <p class="stat-number" id="dash-gym-total">-</p>
+            <p class="stat-label">total logged</p>
+          </div>
+          <div class="glass-card stat-card">
+            <h3>Check-ins</h3>
+            <p class="stat-number" id="dash-checkins">-</p>
+            <p class="stat-label">today</p>
+          </div>
+        </div>
+
+        <!-- Weekly Summary Widget -->
+        <div class="glass-card weekly-summary" id="weekly-summary">
+          <h3>This Week</h3>
+          <div class="weekly-grid" id="weekly-grid">
+            <div class="spinner"></div>
+          </div>
+        </div>
+
+        <div class="dashboard-charts">
+          <div class="glass-card chart-card">
+            <h3>SQL Study Minutes (14 Days)</h3>
+            <canvas id="chart-sql"></canvas>
+          </div>
+          <div class="glass-card chart-card">
+            <h3>Applications by Status</h3>
+            <canvas id="chart-apps"></canvas>
+          </div>
+          <div class="glass-card chart-card">
+            <h3>Gym Minutes (14 Days)</h3>
+            <canvas id="chart-gym"></canvas>
+          </div>
+          <div class="glass-card chart-card">
+            <h3>Tasks Completion (14 Days)</h3>
+            <canvas id="chart-tasks"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Power Tasks -->
+      <section id="section-tasks" class="section">
+        <h2 class="section-title">Power Tasks</h2>
+        <div class="section-controls">
+          <label>Date: <input type="date" id="tasks-date" class="neon-input"></label>
+        </div>
+        <div class="glass-card">
+          <div id="tasks-list" class="tasks-list"><div class="spinner"></div></div>
+          <form id="tasks-form" class="inline-form">
+            <select id="tasks-slot" class="neon-input" required>
+              <option value="">Slot</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+            </select>
+            <input type="text" id="tasks-title" class="neon-input" placeholder="Task title..." required maxlength="200">
+            <button type="submit" class="neon-btn">Add</button>
+          </form>
+        </div>
+
+        <!-- Streak Widget -->
+        <div class="glass-card streak-widget" id="streak-widget">
+          <div class="streak-header">
+            <h3>Streak</h3>
+            <span class="streak-count neon-highlight" id="tasks-streak">0</span>
+            <span class="streak-label">days</span>
+          </div>
+          <div class="streak-calendar" id="streak-calendar"></div>
+        </div>
+      </section>
+
+      <!-- Tomorrow's Plan -->
+      <section id="section-plan" class="section">
+        <h2 class="section-title">Tomorrow's Plan</h2>
+        <div class="section-controls">
+          <label>Plan for: <input type="date" id="plan-date" class="neon-input"></label>
+        </div>
+        <div class="glass-card">
+          <div id="plan-list" class="tasks-list"><div class="spinner"></div></div>
+          <form id="plan-form" class="inline-form">
+            <select id="plan-slot" class="neon-input" required>
+              <option value="">Slot</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+            <input type="text" id="plan-title" class="neon-input" placeholder="Plan item..." required maxlength="200">
+            <input type="text" id="plan-done-when" class="neon-input" placeholder="Done when..." maxlength="500">
+            <button type="submit" class="neon-btn">Add</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- SQL Practice -->
+      <section id="section-sql" class="section">
+        <h2 class="section-title">SQL Practice</h2>
+        <div class="glass-card">
+          <form id="sql-form" class="stacked-form">
+            <input type="text" id="sql-topic" class="neon-input" placeholder="Topic (e.g. JOINs, Subqueries)" required maxlength="200">
+            <input type="number" id="sql-minutes" class="neon-input" placeholder="Minutes" min="0" required>
+            <textarea id="sql-notes" class="neon-input" placeholder="Notes..." rows="2" maxlength="1000"></textarea>
+            <div class="form-actions">
+              <button type="submit" class="neon-btn" id="sql-submit">Log Session</button>
+              <button type="button" class="neon-btn danger" id="sql-cancel" style="display:none">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="glass-card" style="margin-top:1rem;">
+          <h3>Practice Log</h3>
+          <div id="sql-list" class="log-list"><div class="spinner"></div></div>
+        </div>
+      </section>
+
+      <!-- Job Applications -->
+      <section id="section-applications" class="section">
+        <h2 class="section-title">Job Tracker</h2>
+        <div class="glass-card">
+          <form id="apps-form" class="stacked-form">
+            <input type="text" id="apps-company" class="neon-input" placeholder="Company" required maxlength="200">
+            <input type="text" id="apps-role" class="neon-input" placeholder="Role" required maxlength="200">
+            <select id="apps-status" class="neon-input">
+              <option value="applied">Applied</option>
+              <option value="screening">Screening</option>
+              <option value="interviewing">Interviewing</option>
+              <option value="offer">Offer</option>
+              <option value="rejected">Rejected</option>
+              <option value="accepted">Accepted</option>
+            </select>
+            <textarea id="apps-notes" class="neon-input" placeholder="Notes..." rows="2" maxlength="1000"></textarea>
+            <div class="form-actions">
+              <button type="submit" class="neon-btn" id="apps-submit">Add Application</button>
+              <button type="button" class="neon-btn danger" id="apps-cancel" style="display:none">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="glass-card" style="margin-top:1rem;">
+          <div class="list-header">
+            <h3>Applications</h3>
+            <select id="apps-filter" class="neon-input">
+              <option value="">All Statuses</option>
+              <option value="applied">Applied</option>
+              <option value="screening">Screening</option>
+              <option value="interviewing">Interviewing</option>
+              <option value="offer">Offer</option>
+              <option value="rejected">Rejected</option>
+              <option value="accepted">Accepted</option>
+            </select>
+          </div>
+          <div id="apps-list" class="log-list"><div class="spinner"></div></div>
+        </div>
+      </section>
+
+      <!-- Gym Log -->
+      <section id="section-gym" class="section">
+        <h2 class="section-title">Gym Log</h2>
+        <div class="glass-card">
+          <form id="gym-form" class="stacked-form">
+            <input type="text" id="gym-type" class="neon-input" placeholder="Workout type (e.g. Push, Pull, Legs)" required maxlength="100">
+            <input type="number" id="gym-duration" class="neon-input" placeholder="Duration (min)" min="0" required>
+            <textarea id="gym-notes" class="neon-input" placeholder="Notes..." rows="2" maxlength="1000"></textarea>
+            <div class="form-actions">
+              <button type="submit" class="neon-btn" id="gym-submit">Log Workout</button>
+              <button type="button" class="neon-btn danger" id="gym-cancel" style="display:none">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="glass-card" style="margin-top:1rem;">
+          <h3>Recent Workouts</h3>
+          <div id="gym-list" class="log-list"><div class="spinner"></div></div>
+        </div>
+      </section>
+
+      <!-- Relationships -->
+      <section id="section-relationships" class="section">
+        <h2 class="section-title">Relationship Check-ins</h2>
+        <div class="glass-card">
+          <form id="rel-form" class="stacked-form">
+            <select id="rel-time" class="neon-input" required>
+              <option value="morning">Morning</option>
+              <option value="evening">Evening</option>
+            </select>
+            <textarea id="rel-notes" class="neon-input" placeholder="Check-in notes..." rows="2" required maxlength="1000"></textarea>
+            <textarea id="rel-gratitude" class="neon-input" placeholder="Gratitude..." rows="2" maxlength="500"></textarea>
+            <div class="form-actions">
+              <button type="submit" class="neon-btn" id="rel-submit">Save Check-in</button>
+              <button type="button" class="neon-btn danger" id="rel-cancel" style="display:none">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="glass-card" style="margin-top:1rem;">
+          <h3>Recent Check-ins</h3>
+          <div id="rel-list" class="log-list"><div class="spinner"></div></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
