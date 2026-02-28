@@ -12,6 +12,25 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// --- Request logger ---
+app.use((req, res, next) => {
+  const ts = new Date().toISOString();
+  res.on('finish', () => {
+    console.log(`[${ts}] ${req.method} ${req.url} → ${res.statusCode}`);
+  });
+  next();
+});
+
+// --- Health check ---
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime_seconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    version: require('./package.json').version,
+  });
+});
+
 // --- API Routes ---
 app.use('/api/tasks', require('./routes/tasks'));
 app.use('/api/plan', require('./routes/plan'));

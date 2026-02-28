@@ -29,9 +29,15 @@
     </div>
   </div>
 
+  <!-- Mobile sidebar backdrop -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
   <div class="app-shell">
     <!-- Sidebar -->
-    <nav class="sidebar">
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-close">
+        <button class="sidebar-close-btn" id="sidebar-close" aria-label="Close menu">&times;</button>
+      </div>
       <div class="sidebar-header">
         <div class="orb"></div>
         <h1 class="logo">RCC</h1>
@@ -56,6 +62,7 @@
 
       <!-- Topbar -->
       <div class="topbar">
+        <button class="hamburger" id="hamburger" aria-label="Open menu">&#9776;</button>
         <div class="topbar-date" id="topbar-date"></div>
         <button class="neon-btn danger topbar-reset" id="btn-reset-db">Reset DB</button>
       </div>
