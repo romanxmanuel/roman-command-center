@@ -2,7 +2,10 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, '..', 'db.sqlite');
+// On Vercel the project root is read-only — write to /tmp instead
+const DB_PATH = process.env.VERCEL
+  ? '/tmp/db.sqlite'
+  : path.join(__dirname, '..', 'db.sqlite');
 const db = new Database(DB_PATH);
 
 // WAL mode for better read performance under concurrent access
