@@ -164,14 +164,18 @@ html, body {
 .app-shell {
   position: relative;
   z-index: 2;
-  display: flex;
   height: 100vh;
 }
 
 /* ========== SIDEBAR ========== */
 .sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
   width: var(--sidebar-width);
   min-width: var(--sidebar-width);
+  z-index: 300;
   background: var(--glass-bg);
   border-right: 1px solid var(--glass-border);
   backdrop-filter: blur(12px);
@@ -305,7 +309,8 @@ html, body {
 
 /* ========== MAIN CONTENT ========== */
 .main-content {
-  flex: 1;
+  margin-left: var(--sidebar-width);
+  height: 100vh;
   overflow-y: auto;
   padding: 1rem 2rem 2rem;
 }
@@ -873,6 +878,11 @@ textarea.neon-input {
   margin-top: 0.25rem;
 }
 
+/* ========== SIDEBAR CLOSE BUTTON (hidden on desktop) ========== */
+.sidebar-close {
+  display: none;
+}
+
 /* ========== HAMBURGER BUTTON ========== */
 .hamburger {
   display: none;
@@ -924,13 +934,8 @@ textarea.neon-input {
   .hamburger { display: flex; align-items: center; justify-content: center; }
   .nav-link kbd { display: none; }
 
-  /* Sidebar becomes a slide-in drawer */
+  /* Sidebar becomes a slide-in drawer on mobile */
   .sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
-    z-index: 300;
     transform: translateX(-100%);
     transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
     width: 240px;
@@ -964,9 +969,15 @@ textarea.neon-input {
     color: var(--cyan);
   }
 
-  /* Main content full width */
+  /* Main content: no margin since sidebar is hidden by default */
   .main-content {
+    margin-left: 0;
     padding: 0.75rem 1rem 5rem;
+  }
+
+  /* Dev tasks inline selects: stack on narrow screens */
+  .inline-row {
+    flex-wrap: wrap;
   }
 
   /* Topbar compact */
@@ -1028,6 +1039,13 @@ textarea.neon-input {
     font-size: 0.9rem;
   }
 
+  /* Keep topbar reset button compact on mobile */
+  .topbar-reset {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.8rem;
+    white-space: nowrap;
+  }
+
   .neon-input {
     padding: 0.65rem 0.75rem;
     font-size: 0.9rem;
@@ -1079,11 +1097,6 @@ textarea.neon-input {
     width: 95%;
     padding: 1.25rem;
   }
-}
-
-/* Sidebar close button hidden on desktop */
-.sidebar-close {
-  display: none;
 }
 
 /* ========== SLOT BUTTON (clickable slot number) ========== */

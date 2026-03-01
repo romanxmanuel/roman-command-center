@@ -32,32 +32,32 @@
   <!-- Mobile sidebar backdrop -->
   <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
-  <div class="app-shell">
-    <!-- Sidebar -->
-    <nav class="sidebar" id="sidebar">
-      <div class="sidebar-close">
-        <button class="sidebar-close-btn" id="sidebar-close" aria-label="Close menu">&times;</button>
-      </div>
-      <div class="sidebar-header">
-        <div class="orb"></div>
-        <h1 class="logo">RCC</h1>
-        <p class="logo-sub">Command Center</p>
-      </div>
-      <ul class="nav-links">
-        <li><a href="#dashboard" class="nav-link active" data-section="dashboard">Dashboard <kbd>g d</kbd></a></li>
-        <li><a href="#tasks" class="nav-link" data-section="tasks">Power Tasks <kbd>g p</kbd></a></li>
-        <li><a href="#plan" class="nav-link" data-section="plan">Tomorrow's Plan <kbd>g t</kbd></a></li>
-        <li><a href="#sql" class="nav-link" data-section="sql">SQL Log <kbd>g s</kbd></a></li>
-        <li><a href="#applications" class="nav-link" data-section="applications">Job Tracker <kbd>g j</kbd></a></li>
-        <li><a href="#gym" class="nav-link" data-section="gym">Gym <kbd>g g</kbd></a></li>
-        <li><a href="#relationships" class="nav-link" data-section="relationships">Relationship <kbd>g r</kbd></a></li>
-        <li><a href="#devtasks" class="nav-link" data-section="devtasks">Dev Tasks <kbd>g v</kbd></a></li>
-      </ul>
-      <div class="sidebar-footer">
-        <p class="clock" id="clock"></p>
-      </div>
-    </nav>
+  <!-- Sidebar (outside app-shell so it's in the root stacking context) -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-close">
+      <button class="sidebar-close-btn" id="sidebar-close" aria-label="Close menu">&times;</button>
+    </div>
+    <div class="sidebar-header">
+      <div class="orb"></div>
+      <h1 class="logo">RCC</h1>
+      <p class="logo-sub">Command Center</p>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#dashboard" class="nav-link active" data-section="dashboard">Dashboard <kbd>g d</kbd></a></li>
+      <li><a href="#tasks" class="nav-link" data-section="tasks">Power Tasks <kbd>g p</kbd></a></li>
+      <li><a href="#plan" class="nav-link" data-section="plan">Tomorrow's Plan <kbd>g t</kbd></a></li>
+      <li><a href="#sql" class="nav-link" data-section="sql">SQL Log <kbd>g s</kbd></a></li>
+      <li><a href="#applications" class="nav-link" data-section="applications">Job Tracker <kbd>g j</kbd></a></li>
+      <li><a href="#gym" class="nav-link" data-section="gym">Gym <kbd>g g</kbd></a></li>
+      <li><a href="#relationships" class="nav-link" data-section="relationships">Relationship <kbd>g r</kbd></a></li>
+      <li><a href="#devtasks" class="nav-link" data-section="devtasks">Dev Tasks <kbd>g v</kbd></a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <p class="clock" id="clock"></p>
+    </div>
+  </nav>
 
+  <div class="app-shell">
     <!-- Main Content -->
     <main class="main-content">
 
